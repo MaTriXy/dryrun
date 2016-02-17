@@ -11,12 +11,35 @@
 
 
 ## Usage
-> dryrun https://github.com/cesarferreira/android-helloworld
-
+```shell
+dryrun https://github.com/cesarferreira/android-helloworld
+```
 
 Wait a few seconds... and `voilà`! The app is opened on your phone :smiley:
 
-### Goodies
+
+## Advanced usage
+
+- From a custom repository folder:
+
+```shell
+dryrun REPOSITORY_URL -p CUSTOM/PATH/TO/GRADLE_APPLICATION
+```
+
+- A custom module:
+
+```shell
+dryrun REPOSITORY_URL -m CUSTOM_APPLICATION_MODULE
+```
+
+- Help at any time:
+
+```shell
+dryrun -h
+```
+
+
+## Goodies
 
 - Private repos can be tested too :smiley:
 

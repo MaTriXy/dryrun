@@ -1,14 +1,22 @@
-require 'nokogiri'
+require 'adb-sdklib'
+require 'oga'
 require 'fileutils'
 require 'tempfile'
+require 'find'
+require_relative 'dryrun_utils'
 
 module DryRun
   class AndroidProject
-    def initialize(path, custom_app_path, custom_module)
+    def initialize(path, custom_app_path, custom_module, flavour, device)
+
       @custom_app_path = custom_app_path
       @custom_module = custom_module
-      @base_path = path
+      @base_path = @custom_app_path? File.join(path, @custom_app_path) : path
+      @flavour = flavour
+      @device = device
+
       @settings_gradle_path = settings_gradle_file
+      @main_gradle_file = main_gradle_file
 
       check_custom_app_path
 
@@ -18,11 +26,14 @@ module DryRun
     def check_custom_app_path
       return unless @custom_app_path
 
-      full_custom_path = File.join(@base_path, @custom_app_path)
+      full_custom_path = @base_path
       settings_path = settings_gradle_file(full_custom_path)
-      return unless is_valid(settings_path)
+      main_gradle_path = main_gradle_file(full_custom_path)
+      return unless is_valid(main_gradle_path)
 
       @settings_gradle_path = settings_path
+      @main_gradle_file = main_gradle_file
+
       @base_path = full_custom_path
     end
 
@@ -31,8 +42,9 @@ module DryRun
       file_name = 'local.properties'
 
       File.delete(file_name) if File.exist?(file_name)
-
-      system("touch #{file_name}")
+      if !Gem.win_platform?
+        DryrunUtils.execute("touch #{file_name}")
+      end
     end
 
     def remove_application_id
@@ -42,7 +54,10 @@ module DryRun
       file = "#{@path_to_sample}/build.gradle"
 
       # Write good lines to temporary file
-      open(file, 'r').each { |l| tmp << l unless l.include? 'applicationId' }
+      File.open(file, 'r') do |file|
+        file.each do |l| tmp << l unless l.include? 'applicationId'
+        end
+      end
       tmp.close
 
       # Move temp file to origin
@@ -53,8 +68,12 @@ module DryRun
       File.join(path, 'settings.gradle')
     end
 
-    def is_valid(settings_path = @settings_gradle_path)
-      File.exist?(settings_path)
+    def main_gradle_file(path = @base_path)
+      File.join(path, 'build.gradle')
+    end
+
+    def is_valid(main_gradle_file = @main_gradle_file)
+      File.exist?(main_gradle_file)
     end
 
     def find_modules
@@ -78,30 +97,35 @@ module DryRun
       builder = "gradle"
 
       if File.exist?('gradlew')
-        system('chmod +x gradlew')
-
-        builder = 'sh gradlew'
+        if !Gem.win_platform?
+          DryrunUtils.execute('chmod +x gradlew')
+        else
+          DryrunUtils.execute("icacls gradlew /T")
+        end
+        builder = './gradlew'
       end
 
       # Generate the gradle/ folder
-      system('gradle wrap') if File.exist?('gradlew') and !is_gradle_wrapped
+      DryrunUtils.execute('gradle wrap') if File.exist?('gradlew') and !is_gradle_wrapped
 
       remove_application_id
       remove_local_properties
 
       if @custom_module
-        system("#{builder} clean :#{@custom_module}:installDebug")
+        DryrunUtils.execute("#{builder} clean")
+        DryrunUtils.execute("#{builder} :#{@custom_module}:install#{@flavour}Debug")
       else
-        system("#{builder} clean installDebug")
+        DryrunUtils.execute("#{builder} clean")
+        puts "#{builder} install#{@flavour}Debug"
+        DryrunUtils.execute("#{builder} install#{@flavour}Debug")
       end
 
       clear_app_data
 
       puts "Installing #{@package.green}...\n"
-      puts "executing: #{execute_line.green}\n\n"
+      puts "executing: #{execute_line.green}\n"
 
-      system(execute_line)
-
+      @device.shell("#{execute_line}")
     end
 
     def is_gradle_wrapped
@@ -126,31 +150,26 @@ module DryRun
       [false, false]
     end
 
-    def get_clear_app_command
-      "adb shell pm clear #{@package}"
-    end
-
     def get_uninstall_command
-      "adb uninstall #{@package}"
+       "adb uninstall \"#{@package}\""
     end
 
     def clear_app_data
-      system(get_clear_app_command)
+       @device.shell("pm clear #{@package}")
     end
 
     def uninstall_application
-      system(get_uninstall_command) # > /dev/null 2>&1")
+      @device.shell("pm uninstall #{@package}")
     end
 
     def get_execution_line_command(path_to_sample)
-      path_to_manifest = File.join(path_to_sample, 'src/main/AndroidManifest.xml')
+      manifest_file = get_manifest(path_to_sample)
 
-      if !File.exist?(path_to_manifest)
+      if manifest_file.nil?
         return false
       end
 
-      f = File.open(path_to_manifest)
-      doc = Nokogiri::XML(f)
+      doc = Oga.parse_xml(manifest_file)
 
       @package = get_package(doc)
       @launcher_activity = get_launcher_activity(doc)
@@ -159,9 +178,20 @@ module DryRun
         return false
       end
 
-      f.close
+      manifest_file.close
 
-      "adb shell am start -n \"#{get_launchable_activity}\" -a android.intent.action.MAIN -c android.intent.category.LAUNCHER"
+      return "am start -n \"#{get_launchable_activity}\" -a android.intent.action.MAIN -c android.intent.category.LAUNCHER"
+    end
+
+    def get_manifest(path_to_sample)
+      default_path = File.join(path_to_sample, 'src/main/AndroidManifest.xml')
+      if File.exist?(default_path)
+        return File.open(default_path)
+      else
+        Find.find(path_to_sample) do |path|
+          return File.open(path) if path =~ /.*AndroidManifest.xml$/
+        end
+      end
     end
 
     def get_launchable_activity
@@ -170,18 +200,19 @@ module DryRun
     end
 
     def get_package(doc)
-       doc.xpath("//manifest").attr('package').value
-    end
+     doc.xpath("//manifest").attr('package').first.value
+   end
 
-    def get_launcher_activity(doc)
-      activities = doc.css('activity')
-      activities.each do |child|
-        intent_filter = child.css('intent-filter')
-        if intent_filter != nil and intent_filter.length != 0
-          return child.attr('android:name')
-        end
+   def get_launcher_activity(doc)
+    activities = doc.css('activity')
+    activities.each do |child|
+      intent_filter = child.css('intent-filter')
+
+      if intent_filter != nil and intent_filter.length != 0
+        return child.attr("android:name").value
       end
-      false
     end
+    false
   end
+end
 end

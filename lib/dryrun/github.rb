@@ -1,6 +1,8 @@
 require 'tmpdir'
 require 'fileutils'
 require 'uri'
+require_relative 'dryrun_utils'
+require 'digest'
 
 module DryRun
 
@@ -11,11 +13,7 @@ module DryRun
     end
 
     def get_destination
-      destiny = @base_url.gsub('.git','')
-      destiny = destiny.split('/')
-      destiny = destiny.last(2).join('/')
-      destiny = destiny.gsub('git@github.com:','')
-      destiny
+      Digest::SHA256.hexdigest @base_url
     end
 
     def is_valid
@@ -48,13 +46,36 @@ module DryRun
     ##
     ## CLONE THE REPOSITORY
     ##
-    def clone
+    def clone(branch, tag)
       clonable = self.clonable_url
 
       tmpdir = Dir.tmpdir+"/dryrun/#{@destination}"
-      FileUtils.rm_rf(tmpdir)
+      folder_exists = File.directory?(tmpdir)
+      
+      if folder_exists
+        Dir.chdir tmpdir
+        is_git_repo = system("git rev-parse")
+        
+        if !is_git_repo
+          FileUtils.rm_rf(tmpdir)  
+          DryrunUtils.execute("git clone #{clonable} #{tmpdir}")  
+          DryrunUtils.execute("git checkout #{branch}")
+        else
+          puts "Found project in #{tmpdir.green}..."
+          DryrunUtils.execute("git reset --hard HEAD")
+          DryrunUtils.execute("git fetch --all")
+          DryrunUtils.execute("git checkout #{branch}")
+          DryrunUtils.execute("git pull origin #{branch}")
+        end
 
-      system("git clone #{clonable} #{tmpdir}")
+      else
+        DryrunUtils.execute("git clone #{clonable} #{tmpdir}")  
+      end
+
+      if tag
+        Dir.chdir tmpdir
+        DryrunUtils.execute("git checkout #{tag}")
+      end
 
       tmpdir
     end

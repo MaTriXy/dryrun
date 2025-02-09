@@ -1,3 +1,3 @@
-module DryRun
-  VERSION = '0.7.6'
+﻿module Dryrun
+  VERSION = '1.3.2'.freeze
 end

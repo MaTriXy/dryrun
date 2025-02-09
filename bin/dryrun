@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
+
 require 'bundler/setup'
 require 'dryrun'
 
-DryRun::MainApp.new(ARGV).call
+Dryrun::MainApp.new(ARGV).call

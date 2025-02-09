@@ -1,22 +1,39 @@
-# dryrun 
-[![Build Status](https://travis-ci.org/cesarferreira/dryrun.svg?branch=master)](https://travis-ci.org/cesarferreira/dryrun) [![Gem Version](https://badge.fury.io/rb/dryrun.svg)](http://badge.fury.io/rb/dryrun)
-
-**Try** any **android library** hosted online **directly** from the **command line**
-
+<!--<p align="center">
+  <a href="https://github.com/cesarferreira/dryrun" target="_blank">
+    <img width="200"src="extras/gift.gif">
+  </a>
+</p>-->
+<h1 align="center">dryrun</h1>
+<p align="center"><strong>Try any android library</strong> hosted online <strong>directly</strong> from the <strong>command line</strong></p>
 <p align="center">
-<img src="https://raw.githubusercontent.com/cesarferreira/dryrun/master/extras/usage_v4.gif" width="100%" />
+  <a href="https://github.com/cesarferreira/dryrun"><img src="http://ruby-gem-downloads-badge.herokuapp.com/dryrun?type=total" alt="downloads"></a>
+  <a href="https://github.com/cesarferreira/dryrun"><img src="https://badge.fury.io/rb/dryrun.svg" alt="npm"></a>
+  <a href="http://androidweekly.net/issues/issue-200"><img src="https://img.shields.io/badge/Android%20Weekly-%23200-blue.svg" alt="Android Weekly"></a>
+  <a href="https://www.codacy.com/app/cesarferreira/dryrun?utm_source=github.com&utm_medium=referral&utm_content=cesarferreira/dryrun&utm_campaign=badger"><img src="https://api.codacy.com/project/badge/Grade/c9f73e75e72547008558b3e337acbff3" alt="Codacy Badge"></a>
+<a href="https://github.com/cesarferreira/dryrun/issues?q=is%3Aissue+is%3Aclosed"><img src="https://img.shields.io/github/issues-closed-raw/cesarferreira/dryrun.svg?color=%23FF69B4" alt="Closed"></a>
+
 </p>
 
+<p align="center">
+  <img src="extras/ss.gif" width="100%" />
+</p>
+
+## Install
+
+```sh
+gem install dryrun
+```
+
 ## Usage
+
 ```bash
 dryrun https://github.com/cesarferreira/android-helloworld
 ```
 
 Wait a few seconds and the app is now opened on your phone :smiley:
 
-### Advanced usage
 ```bash
-$ dryrun -h                                                                                       
+$ dryrun -h
 Usage: dryrun GIT_URL [OPTIONS]
 
 Options
@@ -25,24 +42,12 @@ Options
     -f, --flavour FLAVOUR            Custom flavour (e.g. dev, qa, prod)
     -p, --path PATH                  Custom path to android project
     -t, --tag TAG                    Checkout tag/commit hash to clone (e.g. "v0.4.5", "6f7dd4b")
+    -c, --cleanup                    Clean the temporary folder before cloning the project
+    -w, --wipe                       Wipe the temporary dryrun folder
     -h, --help                       Displays help
     -v, --version                    Displays the version
+    -a, --android-test               Execute android tests
 ```
-
-## Installation
-
-    $ gem install dryrun
-
-## Goodies
-
-- Private repos can be tested too :smiley:
-```
-  $ dryrun git@github.com:cesarferreira/android-helloworld.git
-```
-
-- No need to cleanup after you test the library.
-
-- No need to wait for **Android Studio** to load.
 
 ## Alternative scenario (if you don't use `dryrun`)
 
@@ -57,6 +62,25 @@ Options
 9. Test all you want
 10. Delete the `project folder` and the `zip file` when you don't want it anymore
 
-## Contributing
+## Goodies
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/cesarferreira/dryrun.
+- Private repos can be tested too :smiley:
+```
+  $ dryrun git@github.com:cesarferreira/android-helloworld.git
+```
+- No need to cleanup after you test the library.
+- No need to wait for **Android Studio** to load.
+
+
+## Notes
+
+Be aware that `$ANDROID_SDK_ROOT` environment variable needs to be set. See more in [here](https://developer.android.com/studio/command-line/variables#set)
+
+Additionally, on windows in order to use git commands, the following path should be on the environment variable
+  - ```...\Git\cmd ```
+
+## Created by
+[Cesar Ferreira](https://cesarferreira.com)
+
+## License
+MIT © [Cesar Ferreira](http://cesarferreira.com)
